@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <button class="paint">
+        рисовать
+    </button>
+    <div id="map"  style="width: 1600px;height: 900px" class="">
+
+    </div>
+</body>
+<script src="https://maps.api.2gis.ru/2.0/loader.js?pkg=full"></script>
+</html>
+
+<script>
+
+    if(DG){
+        var container = 'map';
+        var center = [52.976970,36.068041];
+        var points = [[52.9781, 36.0728],[52.9898, 36.0704],[52.9706, 36.0535]];
+        var paintCoords = [];
+
+
+        var enableDragging = true;
+        DG.then(function(){
+            return DG.plugin('https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js');
+        }).then(function() {
+
+            var paintBtn = document.querySelector('.paint');
+
+
+            paintBtn.onclick = function() {
+                enableDragging = !enableDragging;
+                if (enableDragging) {
+                    enable();
+                    return
+                }
+                disable();
+            }
+
+            function disable(){
+                map.dragging.disable();
+                map.touchZoom.disable();
+                map.boxZoom.disable();
+                map.zoomControl.disable();
+                map.doubleClickZoom.disable();
+                map.scrollWheelZoom.disable();
+                map.geoclicker.disable();
+            }
+
+            function enable(){
+                map.dragging.enable();
+                map.touchZoom.enable();
+                map.boxZoom.enable();
+                map.zoomControl.enable();
+                map.doubleClickZoom.enable();
+                map.scrollWheelZoom.enable();
+                map.geoclicker.enable()
+            }
+
+
+
+            function paint(e){
+                paintCoords.push(e.latlng);
+                polyline.addLatLng(e.latlng)
+            }
+
+            function stopPaint(e){
+                paintCoords.push(e.latlng);
+
+                var readyCoords = [];
+                for(var i = 0; i < paintCoords.length; i+=10){
+                    readyCoords.push(paintCoords[i]);
+                }
+                polyline.setLatLngs([]);
+
+                polygon.setLatLngs(readyCoords);
+                setMarkers(readyCoords);
+                map.fitBounds(polygon.getBounds());
+                setTimeout(function(){
+                    paintBtn.click();
+                },500);
+            }
+
+            function setMarkers(readyCoords){
+
+                var xp = [];
+                var yp = [];
+                for(var i = 0; i < readyCoords.length; i++){
+                    var coord = readyCoords[i];
+                    xp.push(coord.lat);
+                    yp.push(coord.lng);
+                }
+
+                for(var j = 0; j < markers.length; j++){
+                    var marker = markers[j];
+                    marker.removeFrom(map);
+                    if(inPoly(marker.getLatLng().lat,marker.getLatLng().lng, xp, yp)){
+                        marker.addTo(map);
+                    }else{
+
+                    }
+                }
+            }
+
+            map = DG.map(container, {
+                center: center,
+                zoom: 13,
+                geoclicker: true,
+            });
+
+            var polyline = DG.polyline([],{color: 'orange'}).addTo(map);
+            var polygon = DG.polygon([],{color: 'orange'}).addTo(map);
+
+            var markers = [];
+            for(var i = 0; i < points.length; i++){
+                markers.push(DG.marker(points[i]).addTo(map));
+            }
+
+            map.on('movestart',function(e){
+
+            })
+
+            var mouseDown = false;
+            map.on('mousedown',function(e){
+                if(!enableDragging){
+                    paintCoords = [];
+                    mouseDown = true;
+                }
+            });
+
+            map.on('mouseup',function(e){
+                if(!enableDragging){
+                    mouseDown = false;
+                    stopPaint(e);
+                }
+            });
+
+
+            map.on('mousemove',function (e) {
+                if(mouseDown){
+                    paint(e);
+                }
+            })
+
+
+
+
+        });
+    }
+
+    function inPoly(x,y, xp, yp){
+        var npol = xp.length;
+        var j = npol - 1;
+        var c = 0;
+        for (i = 0; i < npol;i++){
+            if ((((yp[i]<=y) && (y<yp[j])) || ((yp[j]<=y) && (y<yp[i]))) &&
+                (x > (xp[j] - xp[i]) * (y - yp[i]) / (yp[j] - yp[i]) + xp[i])) {
+                c = !c
+            }
+            j = i;
+        }
+        return c;
+    }
+
+</script>
